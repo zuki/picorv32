@@ -1,341 +1,341 @@
 
-PicoRV32 - A Size-Optimized RISC-V CPU
+PicoRV32 - サイズ最適化RISC-V CPU
 ======================================
 
-PicoRV32 is a CPU core that implements the [RISC-V RV32IMC Instruction Set](http://riscv.org/).
-It can be configured as RV32E, RV32I, RV32IC, RV32IM, or RV32IMC core, and optionally
-contains a built-in interrupt controller.
+PicoRV32は、[RISC-V RV32IMC命令セット](http://riscv.org/)を実装したCPUコア
+です。RV32E、RV32I、RV32IC、RV32IM、RV32IMCのいずれかのコアとして構成でき、
+オプションとしてビルトイン割り込みコントローラを持つことができます。
 
-Tools (gcc, binutils, etc..) can be obtained via the [RISC-V Website](https://riscv.org/software-status/).
-The examples bundled with PicoRV32 expect various RV32 toolchains to be installed in `/opt/riscv32i[m][c]`. See
-the [build instructions below](#building-a-pure-rv32i-toolchain) for details.
+ツール（gcc、binutilsなど）は、[RISC-VのWebサイト](https://riscv.org/software-status/)から入手できます。
+PicoRV32にバンドルされている例では、さまざまなRV32ツールチェーンが
+`/opt/riscv32i[m][c]`にインストールされていると想定されています。
+詳細については、以下の[ビルド手順](#RV32Iツールチェインの構築)を
+参照してください。
 
-PicoRV32 is free and open hardware licensed under the [ISC license](http://en.wikipedia.org/wiki/ISC_license)
-(a license that is similar in terms to the MIT license or the 2-clause BSD license).
+PicoRV32は、（MITライセンスまたは2条項BSDライセンスと類似したライセンスで
+ある）[ISCライセンス](http://en.wikipedia.org/wiki/ISC_license)の下で
+ライセンスされたフリーのオープンハードウェアです。
 
-#### Table of Contents
+#### 目次
 
-- [Features and Typical Applications](#features-and-typical-applications)
-- [Files in this Repository](#files-in-this-repository)
-- [Verilog Module Parameters](#verilog-module-parameters)
-- [Cycles per Instruction Performance](#cycles-per-instruction-performance)
-- [PicoRV32 Native Memory Interface](#picorv32-native-memory-interface)
-- [Pico Co-Processor Interface (PCPI)](#pico-co-processor-interface-pcpi)
-- [Custom Instructions for IRQ Handling](#custom-instructions-for-irq-handling)
-- [Building a pure RV32I Toolchain](#building-a-pure-rv32i-toolchain)
-- [Linking binaries with newlib for PicoRV32](#linking-binaries-with-newlib-for-picorv32)
-- [Evaluation: Timing and Utilization on Xilinx 7-Series FPGAs](#evaluation-timing-and-utilization-on-xilinx-7-series-fpgas)
+- [機能および代表的なアプリケーション](#features-and-typical-applications)
+- [リポジトリのファイル](#files-in-this-repository)
+- [Verilogモジュールパラメタ](#verilog-module-parameters)
+- [CPIパフォーマンス](#cycles-per-instruction-performance)
+- [PicoRV32ネイティブメモリインターフェース](#picorv32-native-memory-interface)
+- [PCPI: Picoコプロセッサインターフェース](#pico-co-processor-interface-pcpi)
+- [IRQ処理用カスタム命令](#custom-instructions-for-irq-handling)
+- [RV32Iツールチェインの構築](#building-a-pure-rv32i-toolchain)
+- [PicoRV32のバイナリとnewlibのリンク](#linking-binaries-with-newlib-for-picorv32)
+- [評価: ザイリンクス7-シリーズFPGAでのタイミングと使用率](#evaluation-timing-and-utilization-on-xilinx-7-series-fpgas)
 
 
-Features and Typical Applications
+機能および代表的なアプリケーション
 ---------------------------------
 
-- Small (750-2000 LUTs in 7-Series Xilinx Architecture)
-- High f<sub>max</sub> (250-450 MHz on 7-Series Xilinx FPGAs)
-- Selectable native memory interface or AXI4-Lite master
-- Optional IRQ support (using a simple custom ISA)
-- Optional Co-Processor Interface
+- 小面積 (ザイリンクス7シリーズアーキテクチャで750-2000 LUT)
+- 高f<sub>max</sub> (ザイリンクス7シリーズFPGAで250-450 MHz)
+- ネイティブメモリインターフェースとAXI4-liteマスタで選択可能
+- オプションのIRQサポート (簡単なカスタムISAを使用)
+- オプションのコプロセッサインターフェース
 
-This CPU is meant to be used as auxiliary processor in FPGA designs and ASICs. Due
-to its high f<sub>max</sub> it can be integrated in most existing designs without crossing
-clock domains. When operated on a lower frequency, it will have a lot of timing
-slack and thus can be added to a design without compromising timing closure.
+このCPUは、FPGAデザインおよびASICの補助プロセッサとして使用されることを
+意図しています。 f<sub>max</sub>が高いため、クロックドメインを超えることなく
+既存のほとんどのデザインに統合できます。低周波数で動作させた場合、多くの
+タイミングスラックが発生するため、タイミングクロージャを損なうことなく
+デザインに追加できます。
 
-For even smaller size it is possible disable support for registers `x16`..`x31` as
-well as `RDCYCLE[H]`, `RDTIME[H]`, and `RDINSTRET[H]` instructions, turning the
-processor into an RV32E core.
+小サイズの場合、命令`RDCYCLE[H]`、`RDTIME[H]`、`RDINSTRET[H]`と
+レジスタ`x16`..`x31`のサポートを無効にすることで、プロセッサをRV32Eコアに
+変換することができます。
 
-Furthermore it is possible to choose between a dual-port and a single-port
-register file implementation. The former provides better performance while
-the latter results in a smaller core.
+さらに、レジスタファイルの実装でデュアルポートとシングルポートの選択する
+ことができます。前者はパフォーマンスを向上させ、後者はコアを小さくします。
 
-*Note: In architectures that implement the register file in dedicated memory
-resources, such as many FPGAs, disabling the 16 upper registers and/or
-disabling the dual-port register file may not further reduce the core size.*
+*注記: 多くのFPGAなど、内部メモリリソースにレジスタファイルを実装する
+アーキテクチャでは、16個の上位レジスタを無効にしたり、デュアルポート
+レジスタファイルを無効にしたりしても、コアサイズをさらに小さくする
+ことはできません。*
 
-The core exists in three variations: `picorv32`, `picorv32_axi` and `picorv32_wb`.
-The first provides a simple native memory interface, that is easy to use in simple
-environments. `picorv32_axi` provides an AXI-4 Lite Master interface that can
-easily be integrated with existing systems that are already using the AXI
-standard. `picorv32_wb` provides a Wishbone master interface.
+コアには3つのバリエーション、`picorv32`、`picorv32_axi`、`picorv32_wb`が
+あります。`picorv32`は、シンプルなネイティブメモリインターフェイスを提供し、
+シンプルな環境で使いやすいコアです。`picorv32_axi`は、AXI-4 Liteマスタ
+インターフェイスを提供し、AXI標準を使用している既存のシステムと容易に
+統合できます。`picorv32_wb`は、Wishboneマスタインターフェイスを提供します。
 
-A separate core `picorv32_axi_adapter` is provided to bridge between the native
-memory interface and AXI4. This core can be used to create custom cores that
-include one or more PicoRV32 cores together with local RAM, ROM, and
-memory-mapped peripherals, communicating with each other using the native
-interface, and communicating with the outside world via AXI4.
+ネイティブメモリインターフェイスとAXI4をブリッジするために、別のコア
+`picorv32_axi_adapter`が提供されています。このコアは、1つ以上のPicoRV32
+コアとローカルRAM、ROM、メモリマップトペリフェラルを持ち、各コンポーネント
+間はネイティブインターフェイスで、外部とはAXI4で通信するカスタムコアの
+作成に使用することができます。
 
-The optional IRQ feature can be used to react to events from the outside, implement
-fault handlers, or catch instructions from a larger ISA and emulate them in
-software.
+オプションのIRQ機能は、外部からのイベントに反応したり、フォールト
+処理を実装したり、大規模ISAからの命令をキャッチしてソフトウェアで
+エミュレートしたりすることに使用することができます。
 
-The optional Pico Co-Processor Interface (PCPI) can be used to implement
-non-branching instructions in an external coprocessor. Implementations
-of PCPI cores that implement the M Standard Extension instructions
-`MUL[H[SU|U]]` and `DIV[U]/REM[U]` are included in this package.
+オプションのPicoコプロセッサインターフェイス（PCPI）は、外部コプロセッサによる
+非分岐命令の実装に使用することができます。 このパッケージにはM標準拡張命令
+`MUL[H[SU|U]]`と`DIV[U]/REM[U]`を実装するPCPIコアの実装が含まれています。
 
-
-Files in this Repository
+リポジトリのファイル
 ------------------------
 
 #### README.md
 
-You are reading it right now.
+あなたが今読んでいるファイルです。
 
 #### picorv32.v
 
-This Verilog file contains the following Verilog modules:
+このVerilogファイルには次のVerilogモジュールが含まれています。
 
-| Module                   | Description                                                           |
-| ------------------------ | --------------------------------------------------------------------- |
-| `picorv32`               | The PicoRV32 CPU                                                      |
-| `picorv32_axi`           | The version of the CPU with AXI4-Lite interface                       |
-| `picorv32_axi_adapter`   | Adapter from PicoRV32 Memory Interface to AXI4-Lite                   |
-| `picorv32_wb`            | The version of the CPU with Wishbone Master interface                 |
-| `picorv32_pcpi_mul`      | A PCPI core that implements the `MUL[H[SU\|U]]` instructions          |
-| `picorv32_pcpi_fast_mul` | A version of `picorv32_pcpi_fast_mul` using a single cycle multiplier |
-| `picorv32_pcpi_div`      | A PCPI core that implements the `DIV[U]/REM[U]` instructions          |
+| モジュール               | 説明                                                           |
+| ------------------------ | -------------------------------------------------------------- |
+| `picorv32`               | PicoRV32 CPU                                                   |
+| `picorv32_axi`           | AXI4-Liteインターフェースを持つPicoRV32 CPU                    |
+| `picorv32_axi_adapter`   | PicoRV32メモリインターフェースからAXI4-Liteへのアダプタ        |
+| `picorv32_wb`            | Wishboneマスタインターフェースを持つPicoRV32 CPU               |
+| `picorv32_pcpi_mul`      | `MUL[H[SU\|U]]` 命令を実装したPCPIコア                         |
+| `picorv32_pcpi_fast_mul` | シングルサイクル乗算器を使用した`picorv32_pcpi_fast_mul`       |
+| `picorv32_pcpi_div`      | `DIV[U]/REM[U]`命令を実装したPCPIコア                          |
 
-Simply copy this file into your project.
+このファイルをあなたのプロジェクトにコピーしてください。
 
-#### Makefile and testbenches
+#### Makefileとテストベンチ
 
-A basic test environment. Run `make test` to run the standard test bench (`testbench.v`)
-in the standard configurations. There are other test benches and configurations. See
-the `test_*` make target in the Makefile for details.
+基本的なテスト環境です。`make test`を実行すると、標準構成で標準テストベンチ
+（`testbench.v`）を実行します。他にも別のテストベンチと構成があります。
+詳細については、Makefileの`test_*`ターゲットを参照してください。
 
-Run `make test_ez` to run `testbench_ez.v`, a very simple test bench that does
-not require an external firmware .hex file. This can be useful in environments
-where the RISC-V compiler toolchain is not available.
+`make test_ez`を実行すると、外部ファームウェアの.hexファイルを必要としない
+非常に簡単なテストベンチである`testbench_ez.v`を実行します。これは、RISC-V
+コンパイラツールチェーンが利用できない環境で役立つでしょう。
 
-*Note: The test bench is using Icarus Verilog. However, Icarus Verilog 0.9.7
-(the latest release at the time of writing) has a few bugs that prevent the
-test bench from running. Upgrade to the latest github master of Icarus Verilog
-to run the test bench.*
+*注記: テストベンチはIcarus Verilogを使用しています。 ただし、Icarus Verilog
+0.9.7（本文書執筆時点の最新リリース）には、テストベンチの実行を妨げるバグが
+あります。テストベンチは、Icarus Verilogのgithubの最新マスタにアップグレード
+して実行してください。*
 
 #### firmware/
 
-A simple test firmware. This runs the basic tests from `tests/`, some C code, tests IRQ
-handling and the multiply PCPI core.
+簡単なテスト用のファームウエアです。`tests/`配下の基本的なテストとCコードを
+実行し、IRQの処理と乗算器PCPIコアをテストします。
 
-All the code in `firmware/` is in the public domain. Simply copy whatever you can use.
+`firmware/`にあるすべてのコードはパブリックドメインです。 使用できるものは
+何でもコピーして使ってください。
 
 #### tests/
 
-Simple instruction-level tests from [riscv-tests](https://github.com/riscv/riscv-tests).
+[riscv-tests](https://github.com/riscv/riscv-tests) による
+簡単な命令レベルのテストです。
 
 #### dhrystone/
 
-Another simple test firmware that runs the Dhrystone benchmark.
+Dhrystoneベンチマークを実行するもう一つの簡単なテスト用ファームウェアです。
 
 #### picosoc/
 
-A simple example SoC using PicoRV32 that can execute code directly from a
-memory mapped SPI flash.
+メモリマップトSPIフラッシュから直接コードを実行できるPicoRV32を使った
+簡単なSoCの例です。
 
 #### scripts/
 
-Various scripts and examples for different (synthesis) tools and hardware architectures.
+様々な（合成）ツールとハードウェアアーキテクチャ用のスクリプトと例です。
 
-
-Verilog Module Parameters
+Verilogモジュールパラメタ
 -------------------------
 
-The following Verilog module parameters can be used to configure the PicoRV32
-core.
+以下のVerilogモジュールパラメーターを使用して、PicoRV32コアを
+構成することができます。
 
 #### ENABLE_COUNTERS (default = 1)
 
-This parameter enables support for the `RDCYCLE[H]`, `RDTIME[H]`, and
-`RDINSTRET[H]` instructions. This instructions will cause a hardware
-trap (like any other unsupported instruction) if `ENABLE_COUNTERS` is set to zero.
+このパラメータは、`RDCYCLE[H]`, `RDTIME[H]`, `RDINSTRET[H]`の各命令の
+サポートを有効にします。`ENABLE_COUNTERS`にゼロを設定した場合、これらの命令は、
+（他の未サポート命令と同様に）ハードウェアトラップを引き起こします。
 
-*Note: Strictly speaking the `RDCYCLE[H]`, `RDTIME[H]`, and `RDINSTRET[H]`
-instructions are not optional for an RV32I core. But chances are they are not
-going to be missed after the application code has been debugged and profiled.
-This instructions are optional for an RV32E core.*
+*注記: 厳密に言うと、`RDCYCLE[H]`, `RDTIME[H]`, `RDINSTRET[H]`の各命令は、
+RV32Iコアではオプションではありません。 しかし、アプリケーションコードが
+デバッグされ、プロファイルされた後に、これらの命令が見逃されることが
+ないようにします。 これらの命令は、RV32Eコアではオプションです。*
 
 #### ENABLE_COUNTERS64 (default = 1)
 
-This parameter enables support for the `RDCYCLEH`, `RDTIMEH`, and `RDINSTRETH`
-instructions. If this parameter is set to 0, and `ENABLE_COUNTERS` is set to 1,
-then only the `RDCYCLE`, `RDTIME`, and `RDINSTRET` instructions are available.
+このパラメータは、`RDCYCLEH`, `RDTIMEH`, `RDINSTRETH`の各命令の
+サポートを有効にします。 このパラメーターに0を、`ENABLE_COUNTERS`に
+1を設定した場合、`RDCYCLE`, `RDTIME`, `RDINSTRET`の各命令しか使用できません。
 
 #### ENABLE_REGS_16_31 (default = 1)
 
-This parameter enables support for registers the `x16`..`x31`. The RV32E ISA
-excludes this registers. However, the RV32E ISA spec requires a hardware trap
-for when code tries to access this registers. This is not implemented in PicoRV32.
+このパラメータは、レジスタ`x16`..`x31`のサポートを有効にします。 RV32E ISAは
+このレジスタを除外します。RV32E ISA仕様では、コードがこのレジスタにアクセス
+しようとした際にハードウェアトラップの発行を要求していますが、これは
+PicoRV32では実装されていません。
 
 #### ENABLE_REGS_DUALPORT (default = 1)
 
-The register file can be implemented with two or one read ports. A dual ported
-register file improves performance a bit, but can also increase the size of
-the core.
+レジスタファイルは、読み取りポートを2つ持つものと1つ持つものを実装できます。
+デュアルポートレジスタファイルはパフォーマンスを少し向上させますが、コアの
+サイズも増加させる場合があります。
 
 #### LATCHED_MEM_RDATA (default = 0)
 
-Set this to 1 if the `mem_rdata` is kept stable by the external circuit after a
-transaction. In the default configuration the PicoRV32 core only expects the
-`mem_rdata` input to be valid in the cycle with `mem_valid && mem_ready` and
-latches the value internally.
+`mem_rdata`がトランザクション後にも外部回路によって安定している場合、
+これを1に設定します。デフォルトの設定では、PicoRV32コアは、`mem_rdata`入力が
+`mem_valid && mem_ready`であるサイクルでのみ有効であると想定し、値を
+内部的にラッチします。
 
-This parameter is only available for the `picorv32` core. In the
-`picorv32_axi` and `picorv32_wb` core this is implicitly set to 0.
+このパラメータは、`picorv32`コアでのみ使用可能です。 `picorv32_axi`コアと
+`picorv32_wb` コアでは、これは暗黙的に0に設定されます。
 
 #### TWO_STAGE_SHIFT (default = 1)
 
-By default shift operations are performed in two stages: first shifts in units
-of 4 bits and then shifts in units of 1 bit. This speeds up shift operations,
-but adds additional hardware. Set this parameter to 0 to disable the two-stage
-shift to further reduce the size of the core.
+デフォルトでは、シフト操作は2段階で実行されます。まず、4ビット単位でシフトし、
+次に1ビット単位でシフトします。 これによりシフト操作が高速化されますが、
+ハードウェアが追加されます。このパラメータを0に設定すると、2段階シフトが
+無効になり、コアのサイズがさらに小さくなります。
 
 #### BARREL_SHIFTER (default = 0)
 
-By default shift operations are performed by successively shifting by a
-small amount (see `TWO_STAGE_SHIFT` above). With this option set, a barrel
-shifter is used instead.
+デフォルトでは、シフト操作は少量ずつ連続的にシフトすることにより実行されます
+（上の`TWO_STAGE_SHIFT`を参照）。 このオプションを設定すると、代わりに
+バレルシフタが使用されます。
 
 #### TWO_CYCLE_COMPARE (default = 0)
 
-This relaxes the longest data path a bit by adding an additional FF stage
-at the cost of adding an additional clock cycle delay to the conditional
-branch instructions.
+FFステージを追加し、条件付き分岐命令のクロックサイクル遅延を追加
+するというコストを払うことで、最長のデータパスを少し緩和します。
 
-*Note: Enabling this parameter will be most effective when retiming (aka
-"register balancing") is enabled in the synthesis flow.*
+*注記: 合成フローでリタイミング（別名「レジスタバランシング」）が有効に
+なっている場合、このパラメーターを有効にすると効果的です。*
 
 #### TWO_CYCLE_ALU (default = 0)
 
-This adds an additional FF stage in the ALU data path, improving timing
-at the cost of an additional clock cycle for all instructions that use
-the ALU.
+ALUデータパスにFFステージを追加し、ALUを使用するすべての命令のクロック
+サイクルを追加するというコストを払うことでタイミングを改善します。
 
-*Note: Enabling this parameter will be most effective when retiming (aka
-"register balancing") is enabled in the synthesis flow.*
+*注記: 合成フローでリタイミング（別名「レジスタバランシング」）が有効に
+なっている場合、このパラメーターを有効にすると効果的です。*
 
 #### COMPRESSED_ISA (default = 0)
 
-This enables support for the RISC-V Compressed Instruction Set.
+RISC-V縮小命令セットのサポートを有効にします。
 
 #### CATCH_MISALIGN (default = 1)
 
-Set this to 0 to disable the circuitry for catching misaligned memory
-accesses.
+0に設定すると、非アライメントメモリアクセスを捕捉するための回路を無効にします。
 
 #### CATCH_ILLINSN (default = 1)
 
-Set this to 0 to disable the circuitry for catching illegal instructions.
+0に設定すると、不正命令を捕捉するための回路を無効にします。
 
-The core will still trap on `EBREAK` instructions with this option
-set to 0. With IRQs enabled, an `EBREAK` normally triggers an IRQ 1. With
-this option set to 0, an `EBREAK` will trap the processor without
-triggering an interrupt.
+このオプションを0に設定しても、コアは`EBREAK`命令はトラップします。
+IRQが有効な場合、`EBREAK`は通常IRQ 1をトリガします。このオプションを
+0に設定すると、`EBREAK`は割り込みをトリガすることなくプロセッサを
+トラップします。
 
 #### ENABLE_PCPI (default = 0)
 
-Set this to 1 to enable the Pico Co-Processor Interface (PCPI).
+1に設定すると、Picoコプロセッサインターフェース（PCPI）を有効にします。
 
 #### ENABLE_MUL (default = 0)
 
-This parameter internally enables PCPI and instantiates the `picorv32_pcpi_mul`
-core that implements the `MUL[H[SU|U]]` instructions. The external PCPI
-interface only becomes functional when ENABLE_PCPI is set as well.
+このパラメタは内部的にPCPIを有効化し、`MUL[H[SU|U]]`を実装する
+`picorv32_pcpi_mul`コアをインスタンス化します。外部PCPIインターフェースは
+ENABLE_PCPIが同時に設定されている場合にのみ機能します。
 
 #### ENABLE_FAST_MUL (default = 0)
 
-This parameter internally enables PCPI and instantiates the `picorv32_pcpi_fast_mul`
-core that implements the `MUL[H[SU|U]]` instructions. The external PCPI
-interface only becomes functional when ENABLE_PCPI is set as well.
+このパラメタは内部的にPCPIを有効化し、`MUL[H[SU|U]]`を実装する
+`picorv32_pcpi_fast_mul`コアをインスタンス化します。外部PCPIインターフェースは
+ENABLE_PCPIが同時に設定されている場合にのみ機能します。
 
-If both ENABLE_MUL and ENABLE_FAST_MUL are set then the ENABLE_MUL setting
-will be ignored and the fast multiplier core will be instantiated.
+ENABLE_MULとENABLE_FAST_MULが同時にセットされた場合は、ENABLE_MULは無視され、
+高速乗算コアがインスタンス化されます。
 
 #### ENABLE_DIV (default = 0)
 
-This parameter internally enables PCPI and instantiates the `picorv32_pcpi_div`
-core that implements the `DIV[U]/REM[U]` instructions. The external PCPI
-interface only becomes functional when ENABLE_PCPI is set as well.
+このパラメタは内部的にPCPIを有効化し、`DIV[U]/REM[U]`を実装する
+`picorv32_pcpi_div`コアをインスタンス化します。外部PCPIインターフェースは
+ENABLE_PCPIが同時に設定されている場合にのみ機能します。
 
 #### ENABLE_IRQ (default = 0)
 
-Set this to 1 to enable IRQs. (see "Custom Instructions for IRQ Handling" below
-for a discussion of IRQs)
+1に設定するとIRQを有効にします（IRQの議論については下の「IRQ処理用
+カスタム命令」を参照してください）。
 
 #### ENABLE_IRQ_QREGS (default = 1)
 
-Set this to 0 to disable support for the `getq` and `setq` instructions. Without
-the q-registers, the irq return address will be stored in x3 (gp) and the IRQ
-bitmask in x4 (tp), the global pointer and thread pointer registers according
-to the RISC-V ABI.  Code generated from ordinary C code will not interact with
-those registers.
+0に設定すると、`getq`と`setq 命令のサポートを無効にします。qレジスタが
+ない場合、RISC-V ABIに従い、irqのリターンアドレスはグローバルポインタ
+レジスタであるx3（gp）に、IRQビットマスクはスレッドポインタレジスタで
+あるx4（tp）に格納されます。通常のCコードから生成されるコードは、これらの
+レジスタを扱うことはできません。
 
-Support for q-registers is always disabled when ENABLE_IRQ is set to 0.
+ENABLE_IRQを0に設定すると、qレジスタのサポートは常に無効になります。
 
 #### ENABLE_IRQ_TIMER (default = 1)
 
-Set this to 0 to disable support for the `timer` instruction.
+0に設定すると、`timer`命令のサポートを無効にします。
 
-Support for the timer is always disabled when ENABLE_IRQ is set to 0.
+ENABLE_IRQを0に設定すると、タイマのサポートは常に無効になります。
 
 #### ENABLE_TRACE (default = 0)
 
-Produce an execution trace using the `trace_valid` and `trace_data` output ports.
-For a demontration of this feature run `make test_vcd` to create a trace file
-and then run `python3 showtrace.py testbench.trace firmware/firmware.elf` to decode
-it.
+`trace_valid`と`trace_data`出力ポートを使用して実行トレースを生成します。
+この機能をデモするには、`make test_vcd`を実行してトレースファイルを作成し、
+`python3 showtrace.py testbench.trace firmware/firmware.elf`を実行して
+トレースファイルをデコードします。
 
 #### REGS_INIT_ZERO (default = 0)
 
-Set this to 1 to initialize all registers to zero (using a Verilog `initial` block).
-This can be useful for simulation or formal verification.
+1に設定すると、すべてのレジスタを（Verilogの`initail`ブロックを使用して）
+zeroに初期化します。これはformal検証のシミュレーションに便利です。
 
 #### MASKED_IRQ (default = 32'h 0000_0000)
 
-A 1 bit in this bitmask corresponds to a permanently disabled IRQ.
+このビットマスクの1のビットは、永遠に無効となるIRQに対応します。
 
 #### LATCHED_IRQ (default = 32'h ffff_ffff)
 
-A 1 bit in this bitmask indicates that the corresponding IRQ is "latched", i.e.
-when the IRQ line is high for only one cycle, the interrupt will be marked as
-pending and stay pending until the interrupt handler is called (aka "pulse
-interrupts" or "edge-triggered interrupts").
+このビットマスクの1のビットは、対応するIRQが「ラッチ」されることを示します。
+つまり、IRQラインが1サイクルだけhighの場合、割り込みは保留としてマークされ、
+割り込みハンドラが呼び出されるまで保留のままになります（「パルス割り込み」
+または「エッジトリガ割り込み」と呼ばれます）。
 
-Set a bit in this bitmask to 0 to convert an interrupt line to operate
-as "level sensitive" interrupt.
+このビットマスクのビットを0に設定すると、割り込みラインを
+「レベルセンシティブな」割り込みとして動作するように変換します。
 
 #### PROGADDR_RESET (default = 32'h 0000_0000)
 
-The start address of the program.
+プログラムの開始アドレスです。
 
 #### PROGADDR_IRQ (default = 32'h 0000_0010)
 
-The start address of the interrupt handler.
+割り込みハンドラの開始アドレスです。
 
 #### STACKADDR (default = 32'h ffff_ffff)
 
-When this parameter has a value different from 0xffffffff, then register `x2` (the
-stack pointer) is initialized to this value on reset. (All other registers remain
-uninitialized.) Note that the RISC-V calling convention requires the stack pointer
-to be aligned on 16 bytes boundaries (4 bytes for the RV32I soft float calling
-convention).
+このパラメータの値が0xffffffffと異なる場合、レジスタ`x2`
+（スタックポインタ）はリセット時にこの値に初期化されます（他の
+すべてのレジスタはまだ初期化されません）。RISC-Vの呼び出し規約では、
+スタックポインタは16バイト境界（RV32Iソフトフロート呼び出し規約の
+場合は4バイト境界）に揃える必要があることに注意してください。
 
-
-Cycles per Instruction Performance
+CPIパフォーマンス
 ----------------------------------
 
-*A short reminder: This core is optimized for size and f<sub>max</sub>, not performance.*
+*手短な注意: このコアは、パフォーマンスではなく、サイズとf<sub>max</sub>に
+最適化されています。*
 
-Unless stated otherwise, the following numbers apply to a PicoRV32 with
-ENABLE_REGS_DUALPORT active and connected to a memory that can accommodate
-requests within one clock cycle.
+特に明記しない限り、以下の数値は、ENABLE_REGS_DUALPORTが有効で、
+1クロックサイクルで要求に対応できるメモリに接続されているPicoRV32に
+適用されます。
 
-The average Cycles per Instruction (CPI) is approximately 4, depending on the mix of
-instructions in the code. The CPI numbers for the individual instructions can
-be found in the table below. The column "CPI (SP)" contains the CPI numbers for
-a core built without ENABLE_REGS_DUALPORT.
+命令あたりの平均サイクル（CPI）は、コード内の命令の組み合わせに応じて
+おおよそ4です。個々の命令のCPI値は、以下の表に記載されています。
+「CPI（SP）」カラムは、ENABLE_REGS_DUALPORTを無効にしたコアのCPI値です。
 
-| Instruction          |  CPI | CPI (SP) |
+| 命令                 |  CPI | CPI (SP) |
 | ---------------------| ----:| --------:|
 | direct jump (jal)    |    3 |        3 |
 | ALU reg + immediate  |    3 |        3 |
@@ -347,31 +347,29 @@ a core built without ENABLE_REGS_DUALPORT.
 | indirect jump (jalr) |    6 |        6 |
 | shift operations     | 4-14 |     4-15 |
 
-When `ENABLE_MUL` is activated, then a `MUL` instruction will execute
-in 40 cycles and a `MULH[SU|U]` instruction will execute in 72 cycles.
+`ENABLE_MUL`が有効な場合、`MUL`命令は40サイクルで、`MULH[SU|U]`命令は
+72サイクルで実行されます。
 
-When `ENABLE_DIV` is activated, then a `DIV[U]/REM[U]` instruction will
-execute in 40 cycles.
+`ENABLE_DIV`が有効な場合、`DIV[U]/REM[U]`命令は40サイクルで実行されます。
 
-When `BARREL_SHIFTER` is activated, a shift operation takes as long as
-any other ALU operation.
+`BARREL_SHIFTER`を有効にした場合、シフト操作には他のALU操作と同じ時間が
+かかります。
 
-The following dhrystone benchmark results are for a core with enabled
-`ENABLE_FAST_MUL`, `ENABLE_DIV`, and `BARREL_SHIFTER` options.
+以下のdhrystoneベンチマークの結果は、`ENABLE_FAST_MUL`, `ENABLE_DIV`,
+`BARREL_SHIFTER`の各オプションを有効にしたコアの値です。
 
-Dhrystone benchmark results: 0.516 DMIPS/MHz (908 Dhrystones/Second/MHz)
+Dhrystoneベンチマーク結果：0.516 DMIPS/MHz（908 Dhrystones/Second/MHz）
 
-For the Dhrystone benchmark the average CPI is 4.100.
+Dhrystoneベンチマークの平均CPIは4.100です。
 
-Without using the look-ahead memory interface (usually required for max
-clock speed), this results drop to 0.305 DMIPS/MHz and 5.232 CPI.
+先読みメモリインターフェイスを使用しない場合（通常、最大クロック速度に必要）、
+結果は0.305 DMIPS/MHzおよび5.232 CPIに低下します。
 
-
-PicoRV32 Native Memory Interface
+PicoRV32ネイティブメモリインターフェース
 --------------------------------
 
-The native memory interface of PicoRV32 is a simple valid-ready interface
-that can run one memory transfer at a time:
+PicoRV32のネイティブメモリインターフェイスは、一回に一つのメモリ転送を
+実行できるシンプルなvalid-readyインターフェイスです。
 
     output        mem_valid
     output        mem_instr
@@ -382,42 +380,41 @@ that can run one memory transfer at a time:
     output [ 3:0] mem_wstrb
     input  [31:0] mem_rdata
 
-The core initiates a memory transfer by asserting `mem_valid`. The valid
-signal stays high until the peer asserts `mem_ready`. All core outputs
-are stable over the `mem_valid` period. If the memory transfer is an
-instruction fetch, the core asserts `mem_instr`.
+コアは`mem_valid`をアサートすることでメモリ転送を開始します。
+valid信号は、ピアが`mem_ready`をアサートするまでHighを持続します。
+コアのすべての出力は、`mem_valid`がhighの間はずっと変化しません。
+メモリ転送が命令フェッチの場合、コアは`mem_instr`をアサートします。
 
-#### Read Transfer
+#### Read転送
 
-In a read transfer `mem_wstrb` has the value 0 and `mem_wdata` is unused.
+Read転送では、`mem_wstrb`の値は0であり、`mem_wdata`は使用されません。
 
-The memory reads the address `mem_addr` and makes the read value available on
-`mem_rdata` in the cycle `mem_ready` is high.
+メモリは、アドレス`mem_addr`を読み取り、`mem_ready`がhighの間
+`mem_rdata`でread値を読み取れるようにします。
 
-There is no need for an external wait cycle. The memory read can be implemented
-asynchronously with `mem_ready` going high in the same cycle as `mem_valid`, or
-`mem_ready` being tied to constant 1.
+他にwaitサイクルは必要ありません。メモリ読み取りは、`mem_valid`と同じ
+サイクルで`mem_ready`を非同期にhighにする、または、`mem_ready`を定数1と
+するような実装をすることができます。
 
-#### Write Transfer
+#### Write転送
 
-In a write transfer `mem_wstrb` is not 0 and `mem_rdata` is unused. The memory
-write the data at `mem_wdata` to the address `mem_addr` and acknowledges the
-transfer by asserting `mem_ready`.
+Write転送では、`mem_wstrb`は0ではなく、`mem_rdata`は使用されません。
+メモリは、`mem_wdata`のデータをアドレス`mem_addr`に書き込み、
+`mem_ready`をアサートすることで転送を確認します。
 
-The 4 bits of `mem_wstrb` are write enables for the four bytes in the addressed
-word. Only the 8 values `0000`, `1111`, `1100`, `0011`, `1000`, `0100`, `0010`,
-and `0001` are possible, i.e. no write, write 32 bits, write upper 16 bits,
-write lower 16, or write a single byte respectively.
+`mem_wstrb`の4ビットは、ワードアドレスの4バイトの書き込みイネーブルです。
+`0000`, `1111`, `1100`, `0011`, `1000`, `0100`, `0010`, `0001`の8つの値
+だけが指定可能です。各々、書き込みなし、32ビット書き込み、上位16ビット書き込み、下位16書き込み、単一バイトの書き込みです。
 
-There is no need for an external wait cycle. The memory can acknowledge the
-write immediately  with `mem_ready` going high in the same cycle as
-`mem_valid`, or `mem_ready` being tied to constant 1.
+他にwaitサイクルは必要ありません。メモリは、`mem_valid`と同じサイクルで
+`mem_ready`を非同期にhighにする、または、`mem_ready`を定数1と
+することで、書き込みを即座に確認できます。
 
-#### Look-Ahead Interface
+#### 先読みインターフェース
 
-The PicoRV32 core also provides a "Look-Ahead Memory Interface" that provides
-all information about the next memory transfer one clock cycle earlier than the
-normal interface.
+PicoRV32コアは、通常のインターフェイスよりも1クロックサイクル早く次の
+メモリ転送に関するすべての情報を提供する「先読みメモリインターフェイス」も
+提供します。
 
     output        mem_la_read
     output        mem_la_write
@@ -425,21 +422,20 @@ normal interface.
     output [31:0] mem_la_wdata
     output [ 3:0] mem_la_wstrb
 
-In the clock cycle before `mem_valid` goes high, this interface will output a
-pulse on `mem_la_read` or `mem_la_write` to indicate the start of a read or
-write transaction in the next clock cycle.
+`mem_valid`がhighになる前のクロックサイクルで、このインターフェイスは
+`mem_la_read`または`mem_la_write`にパルスを出力し、次のクロックサイクルの
+readまたはwriteトランザクションの開始を示します。
 
-*Note: The signals `mem_la_read`, `mem_la_write`, and `mem_la_addr` are driven
-by combinatorial circuits within the PicoRV32 core. It might be harder to
-achieve timing closure with the look-ahead interface than with the normal
-memory interface described above.*
+*注記: 信号`mem_la_read`, `mem_la_write`, `mem_la_addr`は、PicoRV32コアの
+組み合わせ回路で駆動されます。先読みインターフェイスでは先に説明した
+通常のメモリインターフェイスよりもタイミングクロージャを達成するのが
+難しいかもしれません。*
 
-
-Pico Co-Processor Interface (PCPI)
+Picoコプロセッサインターフェース
 ----------------------------------
 
-The Pico Co-Processor Interface (PCPI) can be used to implement non-branching
-instructions in external cores:
+Picoコプロセッサインターフェース (PCPI)は外部コアによる非分岐命令の
+実装に使用することができる。
 
     output        pcpi_valid
     output [31:0] pcpi_insn
@@ -450,179 +446,170 @@ instructions in external cores:
     input         pcpi_wait
     input         pcpi_ready
 
-When an unsupported instruction is encountered and the PCPI feature is
-activated (see ENABLE_PCPI above), then `pcpi_valid` is asserted, the
-instruction word itself is output on `pcpi_insn`, the `rs1` and `rs2`
-fields are decoded and the values in those registers are output
-on `pcpi_rs1` and `pcpi_rs2`.
+サポートされていない命令が検出された場合、PCPI機能がアクティブになって
+いると（上記のENABLE_PCPIを参照）、`pcpi_valid`がアサートされ、命令ワードが
+`pcpi_insn`に出力されます。また、`rs1`と`rs2`フィールドがデコードされて
+そのレジスタ値が`pcpi_rs1`と`pcpi_rs2`に出力されます。
 
-An external PCPI core can then decode the instruction, execute it, and assert
-`pcpi_ready` when execution of the instruction is finished. Optionally a
-result value can be written to `pcpi_rd` and `pcpi_wr` asserted. The
-PicoRV32 core will then decode the `rd` field of the instruction and
-write the value from `pcpi_rd` to the respective register.
+外部のPCPIコアは、その命令をデコード・実行して、命令の実行が終了したら
+に`pcpi_ready`をアサートします。オプションとして、結果値を`pcpi_rd`に
+書き込み、`pcpi_wr`をアサートできます。そして、PicoRV32コアは命令の
+`rd`フィールドをデコードし、`pcpi_rd`の値を該当するレジスタに書き込みます。
 
-When no external PCPI core acknowledges the instruction within 16 clock
-cycles, then an illegal instruction exception is raised and the respective
-interrupt handler is called. A PCPI core that needs more than a couple of
-cycles to execute an instruction, should assert `pcpi_wait` as soon as
-the instruction has been decoded successfully and keep it asserted until
-it asserts `pcpi_ready`. This will prevent the PicoRV32 core from raising
-an illegal instruction exception.
+外部のPCPIコアが16クロックサイクル内に命令のackしない場合、不正命令例外が
+発生し、対応する割り込みハンドラが呼び出されます。命令の実行にさらに
+数サイクルが必要な場合、PCPIコアは、命令を正常にデコードした後、直ちに
+`pcpi_wait`をアサートし、それを`pcpi_ready`をアサートするまで継続する
+必要があります。これにより、PicoRV32コアが不正命令例外を発生しなくなります。
 
-
-Custom Instructions for IRQ Handling
+IRQ処理用カスタム命令
 ------------------------------------
 
-*Note: The IRQ handling features in PicoRV32 do not follow the RISC-V
-Privileged ISA specification. Instead a small set of very simple custom
-instructions is used to implement IRQ handling with minimal hardware
-overhead.*
+*注記: PicoRV32のIRQ処理機能は、RISC-Vの特権ISA仕様に準拠していません。
+代わりに、少数の非常にシンプルなカスタム命令を使用して、ハードウェア
+オーバーヘッドを最小限にするIRQ処理を実装しています。*
 
-The following custom instructions are only supported when IRQs are enabled
-via the `ENABLE_IRQ` parameter (see above).
+以下のカスタム命令は、`ENABLE_IRQ`パラメータ（上記を参照）でIRQが有効に
+なっている場合にのみサポートされます。
 
-The PicoRV32 core has a built-in interrupt controller with 32 interrupt inputs. An
-interrupt can be triggered by asserting the corresponding bit in the `irq`
-input of the core.
+PicoRV32コアには、32個の割り込み入力を備えた割り込みコントローラーが
+組み込まれています。割り込みは、コアの`irq`入力の対応するビットを
+アサートすることでトリガできます。
 
-When the interrupt handler is started, the `eoi` End Of Interrupt (EOI) signals
-for the handled interrupts go high. The `eoi` signals go low again when the
-interrupt handler returns.
+割り込みハンドラーが開始されると、処理される割り込みの割り込み終了
+（EOI）信号`eoi`がHighになります。 割り込みハンドラが復帰すると、
+`eoi`信号が再びLowになります。
 
-The IRQs 0-2 can be triggered internally by the following built-in interrupt sources:
+IRQ 0〜2は、次の組み込みの割り込みソースによって内部的にトリガされます。
 
-| IRQ | Interrupt Source                    |
+
+| IRQ | 割り込みソース                      |
 | ---:| ------------------------------------|
-|   0 | Timer Interrupt                     |
-|   1 | EBREAK/ECALL or Illegal Instruction |
-|   2 | BUS Error (Unalign Memory Access)   |
+|   0 | タイマー割り込み                    |
+|   1 | EBREAK/ECALL、または、不正命令       |
+|   2 | BUSエラー (非アラインメモリアクセス)|
 
-This interrupts can also be triggered by external sources, such as co-processors
-connected via PCPI.
+この割り込みは、PCPIにより接続されているコプロセッサなどの外部ソースからも
+トリガされることがあります。
 
-The core has 4 additional 32-bit registers `q0 .. q3` that are used for IRQ
-handling. When the IRQ handler is called, the register `q0` contains the return
-address and `q1` contains a bitmask of all IRQs to be handled. This means one
-call to the interrupt handler needs to service more than one IRQ when more than
-one bit is set in `q1`.
+コアには、IRQ処理に使用される4つの追加の32ビットレジスタ`q0 .. q3`が
+あります。IRQハンドラが呼び出される際、レジスタ`q0`にはリターンアドレスが、
+`q1`には処理されるすべてのIRQのビットマスクが設定されます。これは、`q1`に
+複数のビットが設定されている場合、割り込みハンドラは1回の呼び出しで複数の
+IRQを処理する必要があることを意味します。
 
-When support for compressed instructions is enabled, then the LSB of q0 is set
-when the interrupted instruction is a compressed instruction. This can be used if
-the IRQ handler wants to decode the interrupted instruction.
+縮小命令のサポートが有効になっている場合、中断された命令が縮小命令であると、
+q0のLSBがセットされます。これは、IRQハンドラが中断された命令をデコードしたい
+場合に使用できます。
 
-Registers `q2` and `q3` are uninitialized and can be used as temporary storage
-when saving/restoring register values in the IRQ handler.
+レジスター`q2`と`q3`は初期化されず、IRQハンドラでレジスター値を保存/復元する
+際の一時ストレージとして使用できます。
 
-All of the following instructions are encoded under the `custom0` opcode. The f3
-and rs2 fields are ignored in all this instructions.
+以下のすべての命令は、`custom0`オペコードとしてエンコードされます。
+これらすべての命令で、f3とrs2フィールドは無視されます。
 
-See [firmware/custom_ops.S](firmware/custom_ops.S) for GNU assembler macros that
-implement mnemonics for this instructions.
+これら命令のニーモニックを実装しているGNUアセンブラーマクロについては、
+[firmware/custom_ops.S](firmware/custom_ops.S)を参照してください。
 
-See [firmware/start.S](firmware/start.S) for an example implementation of an
-interrupt handler assembler wrapper, and [firmware/irq.c](firmware/irq.c) for
-the actual interrupt handler.
+割り込みハンドラのアセンブララッパの実装例については
+[firmware/start.S](firmware/start.S) を、実際の割り込みハンドラについては
+[firmware/irq.c](firmware/irq.c)を各々参照してください。
 
 #### getq rd, qs
 
-This instruction copies the value from a q-register to a general-purpose
-register.
+この命令はq-レジスタの値を汎用レジスタにコピーします。
 
     0000000 ----- 000XX --- XXXXX 0001011
     f7      rs2   qs    f3  rd    opcode
 
-Example:
+例:
 
     getq x5, q2
 
 #### setq qd, rs
 
-This instruction copies the value from a general-purpose register to a
-q-register.
+この命令は汎用レジスタの値をq-レジスタにコピーします。
 
     0000001 ----- XXXXX --- 000XX 0001011
     f7      rs2   rs    f3  qd    opcode
 
-Example:
+例:
 
     setq q2, x5
 
 #### retirq
 
-Return from interrupt. This instruction copies the value from `q0`
-to the program counter and re-enables interrupts.
+割り込みから復帰します。この命令は`q0`の値をプログラムカウンタにコピーし、
+割り込みを再度有効にします。
 
     0000010 ----- 00000 --- 00000 0001011
     f7      rs2   rs    f3  rd    opcode
 
-Example:
+例:
 
     retirq
 
 #### maskirq
 
-The "IRQ Mask" register contains a bitmask of masked (disabled) interrupts.
-This instruction writes a new value to the irq mask register and reads the old
-value.
+"IRQ Mask"レジスタにはマスク（無効化）する割り込みのビットマスクを設定します。
+この命令はirqマスクレジスタに新しい値を書き込み、元の値を読み込みます。
 
     0000011 ----- XXXXX --- XXXXX 0001011
     f7      rs2   rs    f3  rd    opcode
 
-Example:
+例:
 
     maskirq x1, x2
 
-The processor starts with all interrupts disabled.
+プロセッサはすべての割り込みを無効にして処理を開始します。
 
-An illegal instruction or bus error while the illegal instruction or bus error
-interrupt is disabled will cause the processor to halt.
+不正命令割込またはバスエラー割込を無効にしている場合に、不正命令または
+バスエラーが発生した場合、プロセッサは停止します。
 
 #### waitirq
 
-Pause execution until an interrupt becomes pending. The bitmask of pending IRQs
-is written to `rd`.
+割り込みが保留になるまで実行を一時停止します。 保留するIRQの
+ビットマスクは`rd`に書き込まれます。
 
     0000100 ----- 00000 --- XXXXX 0001011
     f7      rs2   rs    f3  rd    opcode
 
-Example:
+例:
 
     waitirq x1
 
 #### timer
 
-Reset the timer counter to a new value. The counter counts down clock cycles and
-triggers the timer interrupt when transitioning from 1 to 0. Setting the
-counter to zero disables the timer. The old value of the counter is written to
-`rd`.
+タイマカウンタを新しい値にリセットします。カウンタはクロックサイクルを
+カウントダウンし、1から0に変わる際にタイマ割込をトリガします。カウンタに
+0を設定するとタイマは無効になります。カウンタの元の値は`rd`に書き込まれます。
 
     0000101 ----- XXXXX --- XXXXX 0001011
     f7      rs2   rs    f3  rd    opcode
 
-Example:
+例:
 
     timer x1, x2
 
 
-Building a pure RV32I Toolchain
+RV32Iツールチェインの構築
 -------------------------------
 
-TL;DR: Run the following commands to build the complete toolchain:
+TL;DR: 次のコマンドを実行して、完全なツールチェーンを構築します。
 
     make download-tools
     make -j$(nproc) build-tools
 
-The default settings in the [riscv-tools](https://github.com/riscv/riscv-tools) build
-scripts will build a compiler, assembler and linker that can target any RISC-V ISA,
-but the libraries are built for RV32G and RV64G targets. Follow the instructions
-below to build a complete toolchain (including libraries) that target a pure RV32I
-CPU.
+[riscv-tools](https://github.com/riscv/riscv-tools)ビルドスクリプトの
+デフォルト設定は、任意のRISC-V ISAを対象としたコンパイラ、アセンブラ、
+リンカをビルドできますが、ライブラリはRV32GとRV64Gを対象にビルドされます。
+以下の手順にしたがい、純粋にRV32I CPUを対象とする完全なツールチェーン
+（ライブラリを含む）を構築します。
 
-The following commands will build the RISC-V GNU toolchain and libraries for a
-pure RV32I target, and install it in `/opt/riscv32i`:
+以下のコマンドは、純粋なRV32Iを対象とするRISC-V GNUツールチェーンと
+ライブラリを構築し、`/opt/riscv32i`にインストールします。
 
-    # Ubuntu packages needed:
+    # ビルドに必要なUbuntuパッケージ:
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
             libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
 	    gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
@@ -639,64 +626,65 @@ pure RV32I target, and install it in `/opt/riscv32i`:
     ../configure --with-arch=rv32i --prefix=/opt/riscv32i
     make -j$(nproc)
 
-The commands will all be named using the prefix `riscv32-unknown-elf-`, which
-makes it easy to install them side-by-side with the regular riscv-tools (those
-are using the name prefix `riscv64-unknown-elf-` by default).
+コマンドはすべて、接頭辞`riscv32-unknown-elf-`を使って命名されます。
+これにより、通常のriscv-tools（デフォルトでは、名前接頭辞
+`riscv64-unknown-elf-`を使って命名されています）に対応させて簡単に
+インストールできます 。
 
-Alternatively you can simply use one of the following make targets from PicoRV32's
-Makefile to build a `RV32I[M][C]` toolchain. You still need to install all
-prerequisites, as described above. Then run any of the following commands in the
-PicoRV32 source directory:
+または、PicoRV32のMakefileにあるmakeターゲットの一つを選んで、
+`RV32I[M][C]`ツールチェーンを構築することもできます。 上に示したように、
+まず、必要なパッケージをすべてインストールする必要があります。次に、
+PicoRV32ソースディレクトリで次のコマンドのいずれかを実行します。
 
-| Command                                  | Install Directory  | ISA       |
+| コマンド                          | インストールディレクトリ  | ISA       |
 |:---------------------------------------- |:------------------ |:--------  |
 | `make -j$(nproc) build-riscv32i-tools`   | `/opt/riscv32i/`   | `RV32I`   |
 | `make -j$(nproc) build-riscv32ic-tools`  | `/opt/riscv32ic/`  | `RV32IC`  |
 | `make -j$(nproc) build-riscv32im-tools`  | `/opt/riscv32im/`  | `RV32IM`  |
 | `make -j$(nproc) build-riscv32imc-tools` | `/opt/riscv32imc/` | `RV32IMC` |
 
-Or simply run `make -j$(nproc) build-tools` to build and install all four tool chains.
+または、単に`make -j$(nproc) build-tools`を実行して、4つすべてのツール
+チェーンをビルドおよびインストールします。
 
-By default calling any of those make targets will (re-)download the toolchain
-sources. Run `make download-tools` to download the sources to `/var/cache/distfiles/`
-once in advance.
+デフォルトでは、これらのmakeターゲットを呼び出すたびに、ツールチェーンの
+ソースが（再）ダウンロードされます。事前に一回だけ、`make download-tools`を
+実行して、ソースを`/var/cache/distfiles/`にダウンロードします。
 
-*Note: These instructions are for git rev 411d134 (2018-02-14) of riscv-gnu-toolchain.*
+*注記: これらの手順は、riscv-gnu-toolchainのgit rev 411d134（2018-02-14）用です。*
 
-
-Linking binaries with newlib for PicoRV32
+PicoRV32のバイナリとnewlibのリンク
 -----------------------------------------
 
-The tool chains (see last section for install instructions) come with a version of
-the newlib C standard library.
+ツールチェーン（インストール手順については前のセクションを参照）には、
+newlib C標準ライブラリが付属しています。
 
-Use the linker script [firmware/riscv.ld](firmware/riscv.ld) for linking binaries
-against the newlib library. Using this linker script will create a binary that
-has its entry point at 0x10000. (The default linker script does not have a static
-entry point, thus a proper ELF loader would be needed that can determine the
-entry point at runtime while loading the program.)
+バイナリにnewlibライブラリをリンクするには、リンカースクリプト
+[firmware/riscv.ld](firmware/riscv.ld)を使用してください。 このリンカ
+スクリプトを使用すると、エントリポイントが0x10000のバイナリが作成されます
+（デフォルトのリンカスクリプトには静的なエントリポイントがないため、
+プログラムのロード時に、実行時のエントリポイントを決定することができる
+適切なELFローダが必要です）。
 
-Newlib comes with a few syscall stubs. You need to provide your own implementation
-of those syscalls and link your program with this implementation, overwriting the
-default stubs from newlib. See `syscalls.c` in [scripts/cxxdemo/](scripts/cxxdemo/)
-for an example of how to do that.
+Newlibには少数のsyscallスタブがあります。これらsyscallの独自実装を作成し、
+その実装にプログラムをリンクして、newlibのデフォルトスタブを上書きする
+必要があります。その方法については、[scripts/cxxdemo/](scripts/cxxdemo/)の
+`syscalls.c`を参照してください。
 
-
-Evaluation: Timing and Utilization on Xilinx 7-Series FPGAs
+評価: ザイリンクス7-シリーズFPGAでのタイミングと使用率
 -----------------------------------------------------------
 
-The following evaluations have been performed with Vivado 2017.3.
+以下の評価は、Vivado 2017.3で実行しました。
 
-#### Timing on Xilinx 7-Series FPGAs
+#### ザイリンクス7シリーズFPGAのタイミング
 
-The `picorv32_axi` module with enabled `TWO_CYCLE_ALU` has been placed and
-routed for Xilinx Artix-7T, Kintex-7T, Virtex-7T, Kintex UltraScale, and Virtex
-UltraScale devices in all speed grades. A binary search is used to find the
-shortest clock period for which the design meets timing.
+`TWO_CYCLE_ALU`を有効にした`picorv32_axi`モジュールを、ザイリンクスの
+Artix-7T、Kintex-7T、Virtex-7T、Kintex UltraScale、Virtex UltraScaleについて
+すべてのスピードグレードで配置・配線しました。バイナリ検索を使用して、
+デザインがタイミングを満たす最短クロック周期を見つけました。
 
-See `make table.txt` in [scripts/vivado/](scripts/vivado/).
+[scripts/vivado/](scripts/vivado/)の`make table.txt`を参照してください。
 
-| Device                    | Device               | Speedgrade | Clock Period (Freq.) |
+| デバイス                  | デバイス               | 速度グレード | クロック周期（周波数） |
 |:------------------------- |:---------------------|:----------:| --------------------:|
 | Xilinx Kintex-7T          | xc7k70t-fbg676-2     | -2         |     2.4 ns (416 MHz) |
 | Xilinx Kintex-7T          | xc7k70t-fbg676-3     | -3         |     2.2 ns (454 MHz) |
@@ -711,25 +699,26 @@ See `make table.txt` in [scripts/vivado/](scripts/vivado/).
 | Xilinx Virtex UltraScale+ | xcvu3p-ffvc1517-2-e  | -2         |     1.5 ns (666 MHz) |
 | Xilinx Virtex UltraScale+ | xcvu3p-ffvc1517-3-e  | -3         |     1.4 ns (714 MHz) |
 
-#### Utilization on Xilinx 7-Series FPGAs
+#### ザイリンクス7シリーズFPGAの使用率
 
-The following table lists the resource utilization in area-optimized synthesis
-for the following three cores:
+以下の表に、次の3つのコアを面積最適化で合成した場合のリソース使用率を示します。
 
-- **PicoRV32 (small):** The `picorv32` module without counter instructions,
-  without two-stage shifts, with externally latched `mem_rdata`, and without
-  catching of misaligned memory accesses and illegal instructions.
+     PicoRV32（小）：カウンター命令なし、2段シフトなし、mem_rdataの外部ラッチ、および不整列のメモリアクセスと不正な命令のキャッチのないpicorv32モジュール。
 
-- **PicoRV32 (regular):** The `picorv32` module in its default configuration.
+     PicoRV32（通常）：デフォルト構成のpicorv32モジュール。
 
-- **PicoRV32 (large):** The `picorv32` module with enabled PCPI, IRQ, MUL,
-  DIV, BARREL_SHIFTER, and COMPRESSED_ISA features.
+     PicoRV32（大）：PCPI、IRQ、MUL、DIV、BARREL_SHIFTER、およびCOMPRESSED_ISA機能を有効にしたpicorv32モジュール。
 
-See `make area` in [scripts/vivado/](scripts/vivado/).
+- **PicoRV32 (small):** カウンター命令なし、2段シフトなし、外部ラッチの`mem_rdata`、非アラインメモリアクセスと不正命令の捕捉なしの`picorv32`モジュール。
 
-| Core Variant       | Slice LUTs | LUTs as Memory | Slice Registers |
+- **PicoRV32 (regular):** デフォルト構成の`picorv32`モジュール。
+
+- **PicoRV32 (large):** PCPI、IRQ、MUL、DIV、BARREL_SHIFTER、COMPRESSED_ISAの各機能を有効にした`picorv32`モジュール。
+
+[scripts/vivado/](scripts/vivado/)の`make area`を参照してください。
+
+| コアの種類         | Slice LUTs | LUTs as Memory | Slice Registers |
 |:------------------ | ----------:| --------------:| ---------------:|
 | PicoRV32 (small)   |        761 |             48 |             442 |
 | PicoRV32 (regular) |        917 |             48 |             583 |
 | PicoRV32 (large)   |       2019 |             88 |            1085 |
-
