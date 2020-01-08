@@ -18,16 +18,16 @@ PicoRV32は、（MITライセンスまたは2条項BSDライセンスと類似�
 
 #### 目次
 
-- [機能および代表的なアプリケーション](#features-and-typical-applications)
-- [リポジトリのファイル](#files-in-this-repository)
-- [Verilogモジュールパラメタ](#verilog-module-parameters)
-- [CPIパフォーマンス](#cycles-per-instruction-performance)
-- [PicoRV32ネイティブメモリインターフェース](#picorv32-native-memory-interface)
-- [PCPI: Picoコプロセッサインターフェース](#pico-co-processor-interface-pcpi)
-- [IRQ処理用カスタム命令](#custom-instructions-for-irq-handling)
-- [RV32Iツールチェインの構築](#building-a-pure-rv32i-toolchain)
-- [PicoRV32のバイナリとnewlibのリンク](#linking-binaries-with-newlib-for-picorv32)
-- [評価: ザイリンクス7-シリーズFPGAでのタイミングと使用率](#evaluation-timing-and-utilization-on-xilinx-7-series-fpgas)
+- [機能および代表的なアプリケーション](#機能および代表的なアプリケーション)
+- [リポジトリのファイル](#リポジトリのファイル)
+- [Verilogモジュールパラメタ](#Verilogモジュールパラメタ)
+- [CPIパフォーマンス](#CPIパフォーマンス)
+- [PicoRV32ネイティブメモリインターフェース](#PicoRV32ネイティブメモリインターフェース)
+- [PCPI:Picoコプロセッサインターフェース](#PCPI:Picoコプロセッサインターフェース)
+- [IRQ処理用カスタム命令](#IRQ処理用カスタム命令)
+- [RV32Iツールチェインの構築](#RV32Iツールチェインの構築)
+- [PicoRV32のバイナリとnewlibのリンク](#PicoRV32のバイナリとnewlibのリンク)
+- [評価:ザイリンクス7-シリーズFPGAでのタイミングと使用率](#評価:ザイリンクス7-シリーズFPGAでのタイミングと使用率)
 
 
 機能および代表的なアプリケーション
@@ -431,7 +431,7 @@ readまたはwriteトランザクションの開始を示します。
 通常のメモリインターフェイスよりもタイミングクロージャを達成するのが
 難しいかもしれません。*
 
-Picoコプロセッサインターフェース
+PCPI:Picoコプロセッサインターフェース
 ----------------------------------
 
 Picoコプロセッサインターフェース (PCPI)は外部コアによる非分岐命令の
@@ -670,7 +670,7 @@ Newlibには少数のsyscallスタブがあります。これらsyscallの独自
 必要があります。その方法については、[scripts/cxxdemo/](scripts/cxxdemo/)の
 `syscalls.c`を参照してください。
 
-評価: ザイリンクス7-シリーズFPGAでのタイミングと使用率
+評価:ザイリンクス7-シリーズFPGAでのタイミングと使用率
 -----------------------------------------------------------
 
 以下の評価は、Vivado 2017.3で実行しました。
