@@ -703,12 +703,6 @@ Artix-7T、Kintex-7T、Virtex-7T、Kintex UltraScale、Virtex UltraScaleにつ�
 
 以下の表に、次の3つのコアを面積最適化で合成した場合のリソース使用率を示します。
 
-     PicoRV32（小）：カウンター命令なし、2段シフトなし、mem_rdataの外部ラッチ、および不整列のメモリアクセスと不正な命令のキャッチのないpicorv32モジュール。
-
-     PicoRV32（通常）：デフォルト構成のpicorv32モジュール。
-
-     PicoRV32（大）：PCPI、IRQ、MUL、DIV、BARREL_SHIFTER、およびCOMPRESSED_ISA機能を有効にしたpicorv32モジュール。
-
 - **PicoRV32 (small):** カウンター命令なし、2段シフトなし、外部ラッチの`mem_rdata`、非アラインメモリアクセスと不正命令の捕捉なしの`picorv32`モジュール。
 
 - **PicoRV32 (regular):** デフォルト構成の`picorv32`モジュール。
