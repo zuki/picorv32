@@ -29,7 +29,11 @@ SECTIONS {
     } >FLASH
 
 
-    /* This is the initialized data section
+    /* これは初期化されたデータセクションです。
+     プログラムは、データがRAMにあるとして実行しますが、ローダは初期値を
+     FLASH（inidata）に入れます。FLASHからRAMに初期値をコピーすることは、
+     スタートアップが行うべきタスクの1つです。
+    This is the initialized data section
     The program executes knowing that the data is in the RAM
     but the loader puts the initial values in the FLASH (inidata).
     It is one task of the startup to copy the initial values from FLASH to RAM. */

@@ -1,90 +1,89 @@
 
-PicoSoC - PicoRV32を使用したSoCの簡単な例
+PicoSoC - A simple example SoC using PicoRV32
 =============================================
 
 ![](overview.svg)
 
-SPIフラッシュチップからコードを直接実行するPicoRV32の簡単な設計例です。
-ASICやFPGAの設計における簡単な制御タスクとしてすぐに使用できます。
+This is a simple PicoRV32 example design that can run code directly from an SPI
+flash chip. It can be used as a turn-key solution for simple control tasks in
+ASIC and FPGA designs.
 
-Lattice社のiCE40-HX8K Breakoutボードを対象とした実装例が含まれています。
+An example implementation targeting the Lattice iCE40-HX8K Breakout Board is
+included.
 
-フラッシュは、0x00000000と0x01000000から始まるメモリ領域にマップされ、
-SRAMは0x00000000のオーバーレイマッピングされます。 SRAMは単なる小さな
-スクラッチパッドメモリです（デフォルトは256ワード、すなわち、1kBです）。
+The flash is mapped to the memory regions starting at 0x00000000 and
+0x01000000, with the SRAM overlayed for the mapping at 0x00000000. The SRAM
+is just a small scratchpad memory (default 256 words, i.e. 1 kB).
 
-リセットベクトルは0x00100000、すなわち、フラッシュメモリ内の1MBの位置に
-設定されています。
+The reset vector is set to 0x00100000, i.e. at 1MB into in the flash memory.
 
-このシステムのファームウェアイメージの構築方法については、添付されている
-デモ用ファームウェアとリンカスクリプトを参照してください。
+See the included demo firmware and linker script for how to build a firmware
+image for this system.
 
-テストベンチを実行するには、`make hx8ksim`または`make icebsim`を実行します
-（`testbench.vcd`が作成されます）。
+Run `make hx8ksim` or `make icebsim` to run the test bench (and create `testbench.vcd`).
 
-構成ビットストリームとファームウェアイメージの構築とiCE40-HX8K Breakout
-ボードへのアップロードを行うには、`make hx8kprog`を実行します。
+Run `make hx8kprog` to build the configuration bit-stream and firmware images
+and upload them to a connected iCE40-HX8K Breakout Board.
 
-構成ビットストリームとファームウェアイメージの構築とiCEBreaker
-ボードへのアップロードを行うには、`make icebprog`を実行します。
+Run `make icebprog` to build the configuration bit-stream and firmware images
+and upload them to a connected iCEBreaker Board.
 
-| ファイル                              | 説明                                                     |
+| File                              | Description                                                     |
 | --------------------------------- | --------------------------------------------------------------- |
-| [picosoc.v](picosoc.v)            | 最上位レベルのPicoSoC Verilogモジュール                         |
-| [spimemio.v](spimemio.v)          | 外部SPIフラッシュとインターフェースするメモリコントローラ       |
-| [simpleuart.v](simpleuart.v)      | SoCのTX/RXラインに直接接続された簡単なUARTコア                  |
-| [start.s](start.s)                | firmware.hex/firmware.bin のアセンブリソース                    |
-| [firmware.c](firmware.c)          | firmware.hex/firmware.bin のCソースコード                       |
-| [sections.lds](sections.lds)      | firmware.hex/firmware.bin 用のリンカスクリプト                  |
-| [hx8kdemo.v](hx8kdemo.v)          | iCE40-HX8K Breakoutボードを対象とするFPGAベースの実装例         |
-| [hx8kdemo.pcf](hx8kdemo.pcf)      | iCE40-HX8K Breakoutボード対象の実装におけるPIN制約              |
-| [hx8kdemo\_tb.v](hx8kdemo_tb.v)   | iCE40-HX8K Breakoutボード対象の実装用のテストベンチ             |
-| [icebreaker.v](hx8kdemo.v)        | iCEBreakerボードを対象とするFPGAベースの実装例                  |
-| [icebreaker.pcf](hx8kdemo.pcf)    | iCEBreakerボード対象の実装におけるPIN制約                       |
-| [icebreaker\_tb.v](hx8kdemo_tb.v) | iCEBreakerボード対象の実装用のテストベンチ                      |
+| [picosoc.v](picosoc.v)            | Top-level PicoSoC Verilog module                                |
+| [spimemio.v](spimemio.v)          | Memory controller that interfaces to external SPI flash         |
+| [simpleuart.v](simpleuart.v)      | Simple UART core connected directly to SoC TX/RX lines          |
+| [start.s](start.s)                | Assembler source for firmware.hex/firmware.bin                  |
+| [firmware.c](firmware.c)          | C source for firmware.hex/firmware.bin                          |
+| [sections.lds](sections.lds)      | Linker script for firmware.hex/firmware.bin                     |
+| [hx8kdemo.v](hx8kdemo.v)          | FPGA-based example implementation on iCE40-HX8K Breakout Board  |
+| [hx8kdemo.pcf](hx8kdemo.pcf)      | Pin constraints for implementation on iCE40-HX8K Breakout Board |
+| [hx8kdemo\_tb.v](hx8kdemo_tb.v)   | Testbench for implementation on iCE40-HX8K Breakout Board       |
+| [icebreaker.v](hx8kdemo.v)        | FPGA-based example implementation on iCEBreaker Board           |
+| [icebreaker.pcf](hx8kdemo.pcf)    | Pin constraints for implementation on iCEBreaker Board          |
+| [icebreaker\_tb.v](hx8kdemo_tb.v) | Testbench for implementation on iCEBreaker Board                |
 
-### メモリマップ:
+### Memory map:
 
-| アドレス範囲             | 説明                                    |
+| Address Range            | Description                             |
 | ------------------------ | --------------------------------------- |
-| 0x00000000 .. 0x00FFFFFF | 内蔵SRAM                                |
-| 0x01000000 .. 0x01FFFFFF | 外部シリアルFlash                       |
-| 0x02000000 .. 0x02000003 | SPI Flashコントローラ構成レジスタ       |
-| 0x02000004 .. 0x02000007 | UARTクロック分周レジスタ                |
-| 0x02000008 .. 0x0200000B | UART送受信データレジスタ                |
-| 0x03000000 .. 0xFFFFFFFF | メモリマップトユーザペリフェラル        |
+| 0x00000000 .. 0x00FFFFFF | Internal SRAM                           |
+| 0x01000000 .. 0x01FFFFFF | External Serial Flash                   |
+| 0x02000000 .. 0x02000003 | SPI Flash Controller Config Register    |
+| 0x02000004 .. 0x02000007 | UART Clock Divider Register             |
+| 0x02000008 .. 0x0200000B | UART Send/Recv Data Register            |
+| 0x03000000 .. 0xFFFFFFFF | Memory mapped user peripherals          |
 
-実装済み物理SRAMを超える内蔵SRAM領域のアドレスを読み込もうとすると、
-該当するシリアルフラッシュのアドレスから読み込みます。
+Reading from the addresses in the internal SRAM region beyond the end of the
+physical SRAM will read from the corresponding addresses in serial flash.
 
-UART送受信データレジスタの読み込みでは、最後に受信したバイト、または、
-受信バッファーが空の場合は-1（32ビットすべてが1）を返します。
+Reading from the UART Send/Recv Data Register will return the last received
+byte, or -1 (all 32 bits set) when the receive buffer is empty.
 
-UARTクロック分周レジスタには、システムクロック周波数をボーレートで割った
-値を設定する必要があります。
+The UART Clock Divider Register must be set to the system clock frequency
+divided by the baud rate.
 
-設計例（hx8kdemo.v）では、iCE40-HX8K Breakoutボードにある8つのLEDを
-使用しており、これらはアドレス0x03000000の32ビットワードの下位バイトに
-マップされています。
+The example design (hx8kdemo.v) has the 8 LEDs on the iCE40-HX8K Breakout Board
+mapped to the low byte of the 32 bit word at address 0x03000000.
 
-### SPI Flashコントローラ構成レジスタ:
+### SPI Flash Controller Config Register:
 
-| ビット位置 | 説明                                               |
+| Bit(s) | Description                                               |
 | -----: | --------------------------------------------------------- |
-|     31 | MEMIO有効化 (reset=1, Bit Bang SPIコマンドを使う場合は0をセット) |
-|  30:23 | 予約済み (read 0)                                         |
-|     22 | DDR有効化ビット (reset=0)                                 |
-|     21 | QSPI有効化ビット (reset=0)                                |
-|     20 | CRM有効化ビット (reset=0)                                 |
-|  19:16 | Readレイテンシ（ダミー）サイクル (reset=0)                |
-|  15:12 | 予約済み (read 0)                                         |
-|   11:8 | Bit BangモードにおけるIO出力有効化ビット                  |
-|    7:6 | 予約済み (read 0)                                         |
-|      5 | Bit Bangモードにおけるチップセレクト (CS) ライン          |
-|      4 | Bit Bangモードにおけるシリアルクロックライン              |
-|    3:0 | Bit BangモードにおけるIOデータビット                      |
+|     31 | MEMIO Enable (reset=1, set to 0 to bit bang SPI commands) |
+|  30:23 | Reserved (read 0)                                         |
+|     22 | DDR Enable bit (reset=0)                                  |
+|     21 | QSPI Enable bit (reset=0)                                 |
+|     20 | CRM Enable bit (reset=0)                                  |
+|  19:16 | Read latency (dummy) cycles (reset=0)                     |
+|  15:12 | Reserved (read 0)                                         |
+|   11:8 | IO Output enable bits in bit bang mode                    |
+|    7:6 | Reserved (read 0)                                         |
+|      5 | Chip select (CS) line in bit bang mode                    |
+|      4 | Serial clock line in bit bang mode                        |
+|    3:0 | IO data bits in bit bang mode                             |
 
-CRM/DDR/QSPIモード用の次の設定が有効:
+The following settings for CRM/DDR/QSPI modes are valid:
 
 | CRM | QSPI | DDR | Read Command Byte     | Mode Byte |
 | :-: | :--: | :-: | :-------------------- | :-------: |
@@ -96,20 +95,20 @@ CRM/DDR/QSPIモード用の次の設定が有効:
 |   0 |    1 |   1 | EDh DDR Quad I/O Read | FFh       |
 |   1 |    1 |   1 | EDh DDR Quad I/O Read | A5h       |
 
-次のプロット図は各設定の相対パフォーマンスを示しています。
+The following plot visualizes the relative performance of the different configurations:
 
 ![](performance.png)
 
-使用するSPIフラッシュのデータシートで、チップがサポートしている構成と
-各構成における最大クロック周波数を確認してください。
+Consult the datasheet for your SPI flash to learn which configurations are supported
+by the chip and what the maximum clock frequencies are for each configuration.
 
-Quad I/Oモードの場合、SPIマスターでQuad I/Oを有効にする前に、CR1Vの
-QUADフラグを設定する必要があります。設定は、CR1NVの対応するビットを1回だけ
-書き込むか、ブートアップのたびにデバイスファームウェアから書き込むことで
-行います（後者の例については、`firmware.c`の`set_flash_qspi_flag()`を
-参照してください）。
+For Quad I/O mode the QUAD flag in CR1V must be set before enabling Quad I/O in the
+SPI master. Either set it by writing the corresponding bit in CR1NV once, or by writing
+it from your device firmware at every bootup. (See `set_flash_qspi_flag()` in
+`firmware.c` for an example for the latter.)
 
-高速な構成をサポートするには、Lattice iCE40-HX8K Breakoutボードに次の
-変更が必要です。(1) 高速読み取りコマンドをサポートするフラッシュチップに
-交換する。(2) フラッシュチップ上のIO2ピンとIO3ピンをFPGAの（J3の中央付近に
-ある）IOピンのT9とT8に接続する。
+Note that some changes to the Lattice iCE40-HX8K Breakout Board are required to support
+the faster configurations: (1) The flash chip must be replaced with one that supports the
+faster read commands and (2) the IO2 and IO3 pins on the flash chip must be connected to
+the FPGA IO pins T9 and T8 (near the center of J3).
+

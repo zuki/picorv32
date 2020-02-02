@@ -2,9 +2,9 @@
 
 start:
 
-# zero-initialize register file
+# zero-initialize register file: レジスタファイルを0クリア
 addi x1, zero, 0
-# x2 (sp) is initialized by reset
+# x2 (sp) is initialized by reset: spはresetで初期化(ボードごとに設定)
 addi x3, zero, 0
 addi x4, zero, 0
 addi x5, zero, 0
@@ -35,12 +35,13 @@ addi x29, zero, 0
 addi x30, zero, 0
 addi x31, zero, 0
 
-# Update LEDs
+# Update LEDs: LEDで処理状況を示す
 li a0, 0x03000000
 li a1, 1
 sw a1, 0(a0)
 
-# zero initialize entire scratchpad memory
+# zero initialize entire scratchpad memory: スクラッチパドメモリの0クリア
+#    メモリの最上位バイトがsp
 li a0, 0x00000000
 setmemloop:
 sw a0, 0(a0)
@@ -52,7 +53,7 @@ li a0, 0x03000000
 li a1, 3
 sw a1, 0(a0)
 
-# copy data section
+# copy data section: データをFLASHからRAMへコピー
 la a0, _sidata
 la a1, _sdata
 la a2, _edata
@@ -70,7 +71,7 @@ li a0, 0x03000000
 li a1, 7
 sw a1, 0(a0)
 
-# zero-init bss section
+# zero-init bss section: BSS領域を0クリア
 la a0, _sbss
 la a1, _ebss
 bge a0, a1, end_init_bss
@@ -103,15 +104,15 @@ flashio_worker_begin:
 # address of SPI ctrl reg
 li   t0, 0x02000000
 
-# Set CS high, IO0 is output
-li   t1, 0x120
+# Set CS high, IO0 is output: IO0を出力、Chip SelectをHigh
+li   t1, 0x120                 # 0b_0000_0001_00_1_0_0000
 sh   t1, 0(t0)
 
-# Enable Manual SPI Ctrl
+# Enable Manual SPI Ctrl: bit bang モード
 sb   zero, 3(t0)
 
 # Send optional WREN cmd
-beqz a2, flashio_worker_L1
+beqz a2, flashio_worker_L1     # a2=0 -> disable
 li   t5, 8
 andi t2, a2, 0xff
 flashio_worker_L4:
@@ -149,7 +150,7 @@ addi a1, a1, -1
 j    flashio_worker_L1
 flashio_worker_L3:
 
-# Back to MEMIO mode
+# Back to MEMIO mode: MEMIO モード
 li   t1, 0x80
 sb   t1, 3(t0)
 
